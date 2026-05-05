@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, EventType, TriggerType, AndroidCategory, AndroidVisibility } from '@notifee/react-native';
+import notifee, { AndroidImportance, EventType, TriggerType, AndroidCategory, AndroidVisibility, AndroidForegroundServiceType } from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import { store } from '../redux/store';
@@ -16,6 +16,13 @@ class NotificationService {
       await this.createChannel();
       await this.requestPermission();
       
+      // For Android 12+, check if we can schedule exact alarms
+      const settings = await notifee.getNotificationSettings();
+      if (settings.android.alarm === 0) { // 0 means DENIED or NOT_REQUESTED
+        // On Android 12+, this usually opens system settings
+        await notifee.openAlarmSettings();
+      }
+
       this.setupForegroundHandler();
       this.setupFCMListeners();
       this.startForegroundService().catch(() => {});
@@ -23,18 +30,41 @@ class NotificationService {
       this.displayNotification('CookSense', 'Welcome back! Ready to cook? 🍳');
 
       if (this.testInterval) clearInterval(this.testInterval);
-      this.testInterval = setInterval(() => {
-        this.displayTestNotification();
-      }, 10 * 60 * 1000);
-
+      // Background notifications: using trigger instead of setInterval
+      await this.scheduleRepeatingNotification();
       await this.scheduleBatchNotifications();
       this.getFCMToken();
-    } catch (error) {}
+    } catch (error) {
+      console.log('[NotificationService] Init Error:', error);
+    }
+  }
+
+  async scheduleRepeatingNotification() {
+    try {
+      await notifee.createTriggerNotification(
+        {
+          id: 'repeating-cook',
+          title: "Cooking Time! 🍳",
+          body: "Open CookSense to find your next meal.",
+          android: {
+            channelId: 'high_priority',
+            importance: AndroidImportance.HIGH,
+            pressAction: { id: 'default' },
+          },
+        },
+        { 
+          type: TriggerType.INTERVAL, 
+          interval: 15, // 15 minutes (minimum allowed for interval)
+          timeUnit: 'MINUTES',
+          alarmManager: true 
+        }
+      );
+    } catch (e) {}
   }
 
   async scheduleBatchNotifications() {
     const now = Date.now();
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 12; i++) {
       try {
         const triggerTime = now + (i * 10 * 60 * 1000);
         const { title, body } = this.getTimeOfDayMessage(new Date(triggerTime));
@@ -69,6 +99,8 @@ class NotificationService {
           ongoing: true,
           importance: AndroidImportance.LOW,
           pressAction: { id: 'default' },
+          // Android 14 requirement:
+          foregroundServiceTypes: [AndroidForegroundServiceType.SPECIAL_USE],
         },
       });
     }
