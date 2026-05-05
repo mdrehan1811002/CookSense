@@ -20,7 +20,7 @@ class NotificationService {
       this.setupFCMListeners();
       this.startForegroundService().catch(() => {});
       
-      this.displayNotification('CookSense Active', 'Automatic 10-min system ready! 🚀');
+      this.displayNotification('CookSense', 'Welcome back! Ready to cook? 🍳');
 
       if (this.testInterval) clearInterval(this.testInterval);
       this.testInterval = setInterval(() => {
@@ -29,26 +29,21 @@ class NotificationService {
 
       await this.scheduleBatchNotifications();
       this.getFCMToken();
-      console.log('[NotificationService] Init Success');
-    } catch (error) {
-      console.error('[NotificationService] Init Error:', error);
-    }
+    } catch (error) {}
   }
 
   async scheduleBatchNotifications() {
-    console.log('[NotificationService] Scheduling dynamic batch...');
     const now = Date.now();
     for (let i = 1; i <= 6; i++) {
       try {
         const triggerTime = now + (i * 10 * 60 * 1000);
-        const futureDate = new Date(triggerTime);
-        const { title, body } = this.getTimeOfDayMessage(futureDate); // Dynamic based on future time
+        const { title, body } = this.getTimeOfDayMessage(new Date(triggerTime));
         
         await notifee.createTriggerNotification(
           {
-            id: `batch-10min-${i}`,
-            title: title,
-            body: body,
+            id: `cook-batch-${i}`,
+            title,
+            body,
             android: {
               channelId: 'high_priority',
               importance: AndroidImportance.HIGH,
@@ -56,38 +51,18 @@ class NotificationService {
               pressAction: { id: 'default' },
             },
           },
-          {
-            type: TriggerType.TIMESTAMP,
-            timestamp: triggerTime,
-            alarmManager: true,
-          }
+          { type: TriggerType.TIMESTAMP, timestamp: triggerTime, alarmManager: true }
         );
       } catch (e) {}
     }
-  }
-
-  getTimeOfDayMessage(date = new Date()) {
-    const hour = date.getHours();
-    let timeOfDay = 'Day';
-    let emoji = '✨';
-
-    if (hour >= 5 && hour < 12) { timeOfDay = 'Morning'; emoji = '🌅'; }
-    else if (hour >= 12 && hour < 17) { timeOfDay = 'Afternoon'; emoji = '☀️'; }
-    else if (hour >= 17 && hour < 21) { timeOfDay = 'Evening'; emoji = '🌆'; }
-    else { timeOfDay = 'Night'; emoji = '🌙'; }
-
-    return {
-      title: `CookSense: Good ${timeOfDay}! ${emoji}`,
-      body: `Time for a ${timeOfDay.toLowerCase()} check. Ready to cook something special?`
-    };
   }
 
   async startForegroundService() {
     if (Platform.OS === 'android') {
       await notifee.displayNotification({
         id: 'foreground_service',
-        title: 'CookSense Active',
-        body: 'Monitoring meal reminders...',
+        title: 'CookSense',
+        body: 'Your cooking assistant is active 🍳',
         android: {
           channelId: 'high_priority',
           asForegroundService: true,
@@ -103,7 +78,7 @@ class NotificationService {
     if (Platform.OS === 'android') {
       await notifee.createChannel({
         id: 'high_priority',
-        name: 'Alerts',
+        name: 'CookSense Notifications',
         importance: AndroidImportance.HIGH,
         visibility: AndroidVisibility.PUBLIC,
       });
@@ -130,6 +105,32 @@ class NotificationService {
     });
   }
 
+  getTimeOfDayMessage(date = new Date()) {
+    const hour = date.getHours();
+    
+    if (hour >= 5 && hour < 12) {
+      return {
+        title: "What's for breakfast today? 🍳",
+        body: 'Start your day with a healthy meal! Check our top recipes.'
+      };
+    } else if (hour >= 12 && hour < 17) {
+      return {
+        title: "It's lunch time! 🥗",
+        body: 'Quick and delicious lunch recipes are waiting for you.'
+      };
+    } else if (hour >= 17 && hour < 21) {
+      return {
+        title: 'Ready for some evening snacks? 🌆',
+        body: 'Perfect time for a light snack and some tea!'
+      };
+    } else {
+      return {
+        title: 'Start preparing for dinner? 🥘',
+        body: 'Wrap up your day with a perfect home-cooked meal.'
+      };
+    }
+  }
+
   async displayTestNotification() {
     const { title, body } = this.getTimeOfDayMessage();
     this.displayNotification(title, body);
@@ -139,7 +140,7 @@ class NotificationService {
     try {
       await notifee.displayNotification({
         title: title || 'CookSense',
-        body: body || 'Meal time!',
+        body: body || 'Ready to cook?',
         android: {
           channelId: 'high_priority',
           importance: AndroidImportance.HIGH,
@@ -147,7 +148,7 @@ class NotificationService {
           pressAction: { id: 'default' },
         },
       });
-      store.dispatch(addNotification({ title, body, read: false }));
+      store.dispatch(addNotification({ title: title || 'CookSense', body: body || 'Cooking!', read: false }));
     } catch (e) {}
   }
 
