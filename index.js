@@ -1,25 +1,19 @@
-/**
- * @format
- */
-
 import { AppRegistry } from 'react-native';
-import notifee, { EventType } from '@notifee/react-native';
-import { name as appName } from './app.json';
 import App from './src/App';
+import { name as appName } from './app.json';
+import notifee from '@notifee/react-native';
+import messaging from '@react-native-firebase/messaging';
 
-// --- Background Notification Handler ---
-// This must be registered outside of the React lifecycle
+// Handle FCM background messages
+messaging().setBackgroundMessageHandler(async remoteMessage => {
+  console.log('[FCM Background] Message handled!', remoteMessage);
+});
+
+// Handle Notifee background events (interactions only)
 notifee.onBackgroundEvent(async ({ type, detail }) => {
-  const { notification, pressAction } = detail;
-
-  // Check if the user pressed the notification
-  if (type === EventType.PRESS && pressAction.id === 'default') {
-    // Perform any background logic here if needed
-    console.log('User pressed notification in background');
-    
-    // Remove the notification
-    await notifee.cancelNotification(notification.id);
-  }
+  console.log('[Notifee Background] Event:', type);
+  // We keep it simple to prevent crashes. 
+  // Batch scheduling in notificationService.js handles the timing now.
 });
 
 AppRegistry.registerComponent(appName, () => App);

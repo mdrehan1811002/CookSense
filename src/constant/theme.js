@@ -4,11 +4,15 @@ const { width, height } = Dimensions.get('window');
 const guidelineBaseWidth = 375;
 const guidelineBaseHeight = 812;
 
+
+
 // 📏 Scaling Functions
 export const scale = (size) => {
   const newSize = size * (width / guidelineBaseWidth);
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
+
+
 
 export const verticalScale = (size) => {
   const newSize = size * (height / guidelineBaseHeight);
